@@ -16,7 +16,7 @@ TO DO:
 
 root = tk.Tk()
 root.title("Work Data App")
-root.geometry("400x600")
+root.geometry("500x600")
 bgc = "#0b5973"
 fgc = "white"
 root.configure(background=bgc)
@@ -49,12 +49,15 @@ an_frame = Frame(root, bg=bgc)
 # view entry
 ve_frame = Frame(root, bg=bgc)
 ve_viewer = Frame(root, bg=bgc)
+notes_frame = Frame(root, bg=bgc)
 
 # delete entry
 de_frame = Frame(root, bg=bgc)
 
 all_frames = [mm_frame, error_frame, ne_frame, cs_frame, an_frame, ve_frame, ve_viewer, de_frame, review_frame, success_frame, fail_frame, overwrite_frame]
 
+global FOUND
+FOUND = None
 
 def get_data():
     if Path('c:/Users/thetr_000/Dropbox/workdata_database.json').is_file():
@@ -142,24 +145,37 @@ def complete_entry():
     payable_ot = float(np.round((ot * 1.5 * hourly), 2))
     gross = float(np.round((payable_reg + payable_ot), 2))
     new_entry = {}
+    entry_values = [
+                    int(serial), int(route), bt, et, f3996, fappr, appr, bp,
+                    notes, None, None, hours, reg_time, ot, routetime, uaot, gross
+                    ]
     for i in base_entry:
         new_entry[i] = base_entry[i]
-    new_entry['Date'] = serial
-    new_entry['Route'] = route
-    new_entry['Begin Tour'] = bt
-    new_entry['End Tour'] = et
-    new_entry['Morning estimate (3996)'] = f3996
-    new_entry['Mgmt approval (3996)'] = fappr
-    new_entry['OT approval method'] = appr
-    new_entry['Non-primary route time'] = bp
-    new_entry['Notes'] = notes
-    new_entry['Total work hours'] = hours
-    new_entry['Regular time'] = reg_time
-    new_entry['Overtime'] = ot
-    new_entry['Primary route time'] = routetime
-    new_entry['Unauthorized OT'] = uaot
-    new_entry['Gross pay'] = gross
+        keylist = []
+    for i in base_entry.keys():
+        keylist.append(i)
+    for n in range(17):
+        k = keylist[n]
+        if k == 'Salary' or k == 'Hourly':
+            new_entry[k] = base_entry[k]
+        else:
+            new_entry[k] = entry_values[n]
+    
+    display_entry(new_entry)
+    viewer_title_var.set("Data to be saved:")
+    viewer_button_1_var.set("Save!")
+    viewer_button_1.config(command=lambda: [save_entry(new_entry), clear_entries(ne_frame), viewer_button_2.grid(row=18, column=1, pady=10), viewer_button_4.grid(row=19, column=2, pady=10)])
+    viewer_button_3_var.set("Do not save")
+    viewer_button_3.config(command=lambda: [clear_entries(ne_frame), change_frame(ne_frame), viewer_button_2.grid(row=18, column=1, pady=10), viewer_button_4.grid(row=19, column=2, pady=10)])
+    viewer_button_2_var.set("View Notes")
+    viewer_button_2.config(command=lambda: [notestitlevar.set(f"Notes for {convert_date(str(FOUND['Date']))}:"),
+                                            notesvar.set(textwrap.fill(new_entry['Notes'], 50)),
+                                            change_frame(notes_frame)])
+    viewer_button_4.grid_forget()
+    change_frame(ve_viewer)
 
+
+    '''
     output = Label(review_frame, text="Data to be entered:", pady=10, bg=bgc, fg=fgc)
     output.grid(row=0, column=0, columnspan=2)
     r = 1
@@ -171,6 +187,7 @@ def complete_entry():
         keylabel.grid(row=r, column=0)
         vallabel.grid(row=r, column=1)
         r = r + 1
+
 
     save = Button(review_frame, text="Save to database", command=lambda: save_entry(new_entry))
     dns = Button(review_frame, text="Do not save", command=lambda: [change_frame(mm_frame), remove_labels(review_frame)])
@@ -185,19 +202,36 @@ def check_for_duplicate(ent):
             # only use global delete_this for overwriting existing entries!
             global delete_this
             delete_this = entry
+'''
 
+def check_for_duplicate(ent):
+    for entry in data['workdata']:
+        if ent['Date'] == entry['Date']:
+            return entry
+
+
+def remove_entry(delete_this):
+    data['workdata'].remove(delete_this)
+    write_to_db(data)
+
+def write_to_db(new_db):
+    db_file.write_text(json.dumps(new_db, indent=2))
+    check_db(new_db)
+
+
+def check_db(new_db):
+    get_data()
+    if new_db == data:
+        change_frame(success_frame)
+    else:
+        change_frame(fail_frame)
 
 
 def save_entry(ent):
 
     delete_this = None
 
-    def check_for_duplicate():
-        for entry in data['workdata']:
-            if ent['Date'] == entry['Date']:
-                return entry
-
-    def delete_duplicate():
+    def remove_entry():
         data['workdata'].remove(delete_this)
         append_entry()
 
@@ -206,36 +240,20 @@ def save_entry(ent):
         sort_db()
 
     def sort_db():
-        print(data['workdata'][-1])
         serials = []
         for e in data['workdata']:
             serials.append(int(e['Date']))
-        if int(ent['Date']) not in serials:
-            serials.append(int(ent['Date']))
         serials.sort()
-        print(serials)
         sorted_db = {'workdata': []}
         for serial in serials:
             for e in data['workdata']:
                 if int(e['Date']) == serial:
                     sorted_db['workdata'].append(e)
-        save_sorted(sorted_db)
+        write_to_db(sorted_db)
 
-    def save_sorted(sorted_db):
-        print(sorted_db['workdata'])
-        db_file.write_text(json.dumps(sorted_db, indent=2))
-        check_db()
-
-    def check_db():
-        get_data()
-        if ent in data['workdata']:
-            change_frame(success_frame)
-        else:
-            change_frame(fail_frame)
-
-    delete_this = check_for_duplicate()
+    delete_this = check_for_duplicate(ent)
     if delete_this:
-        or_ybutton.config(command=delete_duplicate)
+        or_ybutton.config(command=remove_entry)
         change_frame(overwrite_frame)
     else:
         append_entry()
@@ -363,11 +381,26 @@ def find_entry(ent):
     ent = convert_date(ent)
     ent = int(ent)
     for e in data['workdata']:
-        print(e['Date'])
         if e['Date'] == ent:
+            viewer_title_var.set("Entry found!")
+            FOUND = e
             display_entry(e)
-            break
-    return
+            de_title_var.set(f"Are you sure you want to delete the entry for {convert_date(str(FOUND['Date']))}?")
+            de_ybutton.config(command=lambda: [clear_display_labels(), remove_entry(FOUND)])
+            viewer_button_2.config(command=lambda: [
+                                                    notestitlevar.set(f"Notes for {convert_date(str(FOUND['Date']))}:"),
+                                                    notesvar.set(textwrap.fill(FOUND['Notes'], 50)),
+                                                    change_frame(notes_frame)
+                                                    ])
+            return
+    viewer_title_var.set("Entry not found!")
+
+
+def clear_display_labels():
+    for sv in labvar_list:
+        sv.set("")
+    for sv in labvar_list2:
+        sv.set("")
 
 
 def display_entry(ent):
@@ -380,33 +413,17 @@ def display_entry(ent):
         labvar_list[n].set(f"{keys[n]}:")
         if keys[n] == 'Date':
             labvar_list2[n].set(convert_date(str(vals[n])))
-        elif keys[n] == 'Notes':
+        elif keys[n] == 'Notes' or keys[n] == 'OT approval method':
             if vals[n]:
-                labvar_list2[n].set(textwrap.fill(vals[n], 35))
+                if len(vals[n]) > 125:
+                    short_notes = vals[n][:125] + "..."
+                    labvar_list2[n].set(textwrap.fill(short_notes, 35))
+                else:
+                    labvar_list2[n].set(textwrap.fill(vals[n], 35))
             else:
                 labvar_list2[n].set(vals[n])
         else:
             labvar_list2[n].set(vals[n])
-
-    '''
-    lab_1var.set(f"Date{spacer('Date')}{convert_date(ent['Date'])}")
-    lab_2var.set(f"Route: {ent['Route']}")
-    lab_3var.set(f"Begin Tour: {ent['Begin Tour']}")
-    lab_4var.set(f"End Tour: {ent['End Tour']}")
-    lab_5var.set(f"Morning estimate (3996): {ent['Morning estimate (3996)']}")
-    lab_6var.set(f"Mgmt approval (3996): {ent['Mgmt approval (3996)']}")
-    lab_7var.set(f"OT approval method: {ent['OT approval method']}")
-    lab_8var.set(f"Non-primary route time: {ent['Non-primary route time']}")
-    lab_9var.set(f"Notes: {ent['Notes']}")
-    lab_10var.set(f"Salary: {ent['Salary']}")
-    lab_11var.set(f"Hourly: {ent['Hourly']}")
-    lab_12var.set(f"Total work hours: {ent['Total work hours']}")
-    lab_13var.set(f"Regular time: {ent['Regular time']}")
-    lab_14var.set(f"Overtime: {ent['Overtime']}")
-    lab_15var.set(f"Primary route time: {ent['Primary route time']}")
-    lab_16var.set(f"Unauthorized OT: {ent['Unauthorized OT']}")
-    lab_17var.set(f"Gross pay: {ent['Gross pay']}")
-    '''
 
 
 frame_history = []
@@ -441,28 +458,6 @@ try:
 except IndexError:
     base_entry['Salary'] = 0
 base_entry['Hourly'] = float(np.round((base_entry['Salary'] / 2080.00), 2))
-
-
-# mm_frame population
-title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
-sal_disp = Label(mm_frame,
-                 text=f"Salary set to ${base_entry['Salary']}", bg=bgc, fg=fgc)
-entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
-change_sal = Button(mm_frame, text="Change Salary Rate")
-analytics = Button(mm_frame, text="Analytics Menu")
-view_ent = Button(mm_frame, text="View Entry", command=lambda: change_frame(ve_frame))
-delete_ent = Button(mm_frame, text="Delete an Entry")
-close_pgm = Button(mm_frame, text="Exit the Program", command=quit)
-
-title.pack(pady=20)
-sal_disp.pack(pady=20)
-entry.pack(pady=5)
-change_sal.pack(pady=5)
-analytics.pack(pady=5)
-view_ent.pack(pady=5)
-delete_ent.pack(pady=5)
-close_pgm.pack(pady=5)
-
 
 # ne_frame population
 ne_title = Label(ne_frame, text="New Entry", bg=bgc, fg=fgc)
@@ -542,7 +537,11 @@ ve_label = Label(ve_frame, text="Enter the date of the entry you would like to v
 ve_text = StringVar()
 ve_entry = Entry(ve_frame, width=15, textvariable=ve_text)
 ve_text.trace('w', lambda *args: date_format(ve_text, ve_entry))
-ve_button = Button(ve_frame, text="Search", command=lambda: [find_entry(ve_text.get()), change_frame(ve_viewer)])
+ve_button = Button(ve_frame, text="Search", command=lambda: [
+                                                             find_entry(ve_text.get()),
+                                                             change_frame(ve_viewer),
+                                                             clear_entries(ve_frame)
+                                                             ])
 ve_mm_button = Button(ve_frame, text="Main Menu", command=lambda: [change_frame(mm_frame), clear_entries(ve_frame)])
 
 ve_title.pack(pady=10)
@@ -552,9 +551,16 @@ ve_button.pack(pady=15)
 ve_mm_button.pack()
 
 # ve_viewer frame population
-viewer_title = Label(ve_viewer, text="Entry Found!", bg=bgc, fg=fgc)
-viewer_newsearch = Button(ve_viewer, text="New Search", command=lambda: [clear_entries(ve_frame), change_frame(ve_frame)])
-viewer_mm_button = Button(ve_viewer, text="Main Menu", command=lambda: [change_frame(mm_frame), clear_entries(ve_frame)])
+viewer_title_var = StringVar()
+viewer_button_1_var = StringVar()
+viewer_button_2_var = StringVar()
+viewer_button_3_var = StringVar()
+viewer_button_4_var = StringVar()
+viewer_title = Label(ve_viewer, textvariable=viewer_title_var, bg=bgc, fg=fgc)
+viewer_button_1 = Button(ve_viewer, textvariable=viewer_button_1_var)
+viewer_button_2 = Button(ve_viewer, textvariable=viewer_button_2_var)
+viewer_button_3 = Button(ve_viewer, textvariable=viewer_button_3_var)
+viewer_button_4 = Button(ve_viewer, textvariable=viewer_button_4_var)
 
 lab_1var = StringVar()
 lab_2var = StringVar()
@@ -626,7 +632,7 @@ lab_20 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_20var)
 lab_21 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_21var)
 lab_22 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_22var)
 lab_23 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_23var)
-lab_24 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_24var)
+lab_24 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_24var, justify=LEFT)
 lab_25 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_25var)
 lab_26 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_26var, justify=LEFT)
 lab_27 = Label(ve_viewer, bg=bgc, fg=fgc, textvariable=lab_27var)
@@ -665,46 +671,48 @@ spacer_list = [
                ]
 
 viewer_title.grid(row=0, column=0, columnspan=3, pady=15)
-lab_1.grid(row=1, column=0, sticky=E)
-lab_2.grid(row=2, column=0, sticky=E)
-lab_3.grid(row=3, column=0, sticky=E)
-lab_4.grid(row=4, column=0, sticky=E)
-lab_5.grid(row=5, column=0, sticky=E)
-lab_6.grid(row=6, column=0, sticky=E)
-lab_7.grid(row=7, column=0, sticky=E)
-lab_8.grid(row=8, column=0, sticky=E)
-lab_9.grid(row=9, column=0, sticky=E)
-lab_10.grid(row=10, column=0, sticky=E)
-lab_11.grid(row=11, column=0, sticky=E)
-lab_12.grid(row=12, column=0, sticky=E)
-lab_13.grid(row=13, column=0, sticky=E)
-lab_14.grid(row=14, column=0, sticky=E)
-lab_15.grid(row=15, column=0, sticky=E)
-lab_16.grid(row=16, column=0, sticky=E)
-lab_17.grid(row=17, column=0, sticky=E)
-lab_18.grid(row=1, column=2, sticky=W)
-lab_19.grid(row=2, column=2, sticky=W)
-lab_20.grid(row=3, column=2, sticky=W)
-lab_21.grid(row=4, column=2, sticky=W)
-lab_22.grid(row=5, column=2, sticky=W)
-lab_23.grid(row=6, column=2, sticky=W)
-lab_24.grid(row=7, column=2, sticky=W)
-lab_25.grid(row=8, column=2, sticky=W)
-lab_26.grid(row=9, column=2, sticky=W)
-lab_27.grid(row=10, column=2, sticky=W)
-lab_28.grid(row=11, column=2, sticky=W)
-lab_29.grid(row=12, column=2, sticky=W)
-lab_30.grid(row=13, column=2, sticky=W)
-lab_31.grid(row=14, column=2, sticky=W)
-lab_32.grid(row=15, column=2, sticky=W)
-lab_33.grid(row=16, column=2, sticky=W)
-lab_34.grid(row=17, column=2, sticky=W)
+lab_1.grid(row=1, column=0, sticky=NE)
+lab_2.grid(row=2, column=0, sticky=NE)
+lab_3.grid(row=3, column=0, sticky=NE)
+lab_4.grid(row=4, column=0, sticky=NE)
+lab_5.grid(row=5, column=0, sticky=NE)
+lab_6.grid(row=6, column=0, sticky=NE)
+lab_7.grid(row=7, column=0, sticky=NE)
+lab_8.grid(row=8, column=0, sticky=NE)
+lab_9.grid(row=9, column=0, sticky=NE)
+lab_10.grid(row=10, column=0, sticky=NE)
+lab_11.grid(row=11, column=0, sticky=NE)
+lab_12.grid(row=12, column=0, sticky=NE)
+lab_13.grid(row=13, column=0, sticky=NE)
+lab_14.grid(row=14, column=0, sticky=NE)
+lab_15.grid(row=15, column=0, sticky=NE)
+lab_16.grid(row=16, column=0, sticky=NE)
+lab_17.grid(row=17, column=0, sticky=NE)
+lab_18.grid(row=1, column=2, sticky=NW)
+lab_19.grid(row=2, column=2, sticky=NW)
+lab_20.grid(row=3, column=2, sticky=NW)
+lab_21.grid(row=4, column=2, sticky=NW)
+lab_22.grid(row=5, column=2, sticky=NW)
+lab_23.grid(row=6, column=2, sticky=NW)
+lab_24.grid(row=7, column=2, sticky=NW)
+lab_25.grid(row=8, column=2, sticky=NW)
+lab_26.grid(row=9, column=2, sticky=NW)
+lab_27.grid(row=10, column=2, sticky=NW)
+lab_28.grid(row=11, column=2, sticky=NW)
+lab_29.grid(row=12, column=2, sticky=NW)
+lab_30.grid(row=13, column=2, sticky=NW)
+lab_31.grid(row=14, column=2, sticky=NW)
+lab_32.grid(row=15, column=2, sticky=NW)
+lab_33.grid(row=16, column=2, sticky=NW)
+lab_34.grid(row=17, column=2, sticky=NW)
 
 for n in range(len(spacer_list)):
-    spacer_list[n].grid(row=n+1, column=1)
+    spacer_list[n].grid(row=n+1, column=1, sticky=N)
 
-viewer_newsearch.grid(row=18, column=0, columnspan=3, pady=10)
-viewer_mm_button.grid(row=19, column=0, columnspan=3, pady=10)
+viewer_button_1.grid(row=18, column=0, pady=10)
+viewer_button_2.grid(row=19, column=0, pady=10)
+viewer_button_3.grid(row=18, column=2, pady=10)
+viewer_button_4.grid(row=19, column=2, pady=10)
 
 
 # overwrite frame population
@@ -725,6 +733,57 @@ success_label.pack(pady=20)
 success_mm_button.pack(pady=20)
 fail_label.pack(pady=20)
 fail_mm_button.pack(pady=20)
+
+# de_frame population
+de_title_var = StringVar()
+de_title = Label(de_frame, textvariable=de_title_var, bg=bgc, fg=fgc)
+de_ybutton = Button(de_frame, text="Yes")
+de_nbutton = Button(de_frame, text="No", command=lambda: change_frame(ve_viewer))
+
+de_title.grid(row=0, column=0, columnspan=2, pady=20)
+de_ybutton.grid(row=1, column=0)
+de_nbutton.grid(row=1, column=1)
+
+# notes_frame population
+notestitlevar = StringVar()
+notesvar = StringVar()
+notes_title = Label(notes_frame, textvariable=notestitlevar, bg=bgc, fg=fgc)
+notes_body = Label(notes_frame, textvariable=notesvar, bg=bgc, fg=fgc, justify=LEFT)
+notes_button = Button(notes_frame, text="Return", command=lambda: change_frame(ve_viewer))
+
+notes_title.pack(pady=10)
+notes_body.pack()
+notes_button.pack(pady=15)
+
+# mm_frame population
+title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
+sal_disp = Label(mm_frame,
+                 text=f"Salary set to ${base_entry['Salary']}", bg=bgc, fg=fgc)
+entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
+change_sal = Button(mm_frame, text="Change Salary Rate")
+analytics = Button(mm_frame, text="Analytics Menu")
+view_ent = Button(mm_frame, text="View Entry", command=lambda: [
+                                                                viewer_title_var.set("Entry found!"),
+                                                                viewer_button_1_var.set("New Search"),
+                                                                viewer_button_1.config(command=lambda: [clear_display_labels(), clear_entries(ve_frame), change_frame(ve_frame)]),
+                                                                viewer_button_2_var.set("View Notes"),
+                                                                viewer_button_3_var.set("Delete Entry"),
+                                                                viewer_button_3.config(command=lambda: change_frame(de_frame)),
+                                                                viewer_button_4_var.set("Main Menu"),
+                                                                viewer_button_4.config(command=lambda: [clear_entries(ve_frame), change_frame(mm_frame)]),
+                                                                change_frame(ve_frame)
+                                                                ])
+delete_ent = Button(mm_frame, text="Delete an Entry")
+close_pgm = Button(mm_frame, text="Exit the Program", command=quit)
+
+title.pack(pady=20)
+sal_disp.pack(pady=20)
+entry.pack(pady=5)
+change_sal.pack(pady=5)
+analytics.pack(pady=5)
+view_ent.pack(pady=5)
+delete_ent.pack(pady=5)
+close_pgm.pack(pady=5)
 
 change_frame(mm_frame)
 
