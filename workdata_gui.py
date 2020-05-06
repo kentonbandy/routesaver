@@ -21,7 +21,7 @@ bgc = "#0b5973"
 fgc = "white"
 root.configure(background=bgc)
 
-
+# Open window in the center of the screen
 root.withdraw()
 root.update_idletasks()
 x = (root.winfo_screenwidth() - root.winfo_reqwidth()) / 2 - 100
@@ -29,66 +29,154 @@ y = (root.winfo_screenheight() - root.winfo_reqheight()) / 2 - 200
 root.geometry("+%d+%d" % (x, y))
 root.deiconify()
 
+#frames
 mm_frame = Frame(root, bg=bgc)
 error_frame = Frame(root, bg=bgc)
-
-# new entry
 ne_frame = Frame(root, bg=bgc)
-
 review_frame = Frame(root, bg=bgc)
 success_frame = Frame(root, bg=bgc)
 fail_frame = Frame(root, bg=bgc)
 overwrite_frame = Frame(root, bg=bgc)
-
-# change salary
 cs_frame = Frame(root, bg=bgc)
-
-# analytics
 an_frame = Frame(root, bg=bgc)
-
-# view entry
 ve_frame = Frame(root, bg=bgc)
 ve_viewer = Frame(root, bg=bgc)
 notes_frame = Frame(root, bg=bgc)
-
-# delete entry
 de_frame = Frame(root, bg=bgc)
 
-all_frames = [mm_frame, error_frame, ne_frame, cs_frame, an_frame, ve_frame, ve_viewer, de_frame, review_frame, success_frame, fail_frame, overwrite_frame]
+all_frames = [mm_frame, error_frame, ne_frame, cs_frame, an_frame, ve_frame,
+              ve_viewer, de_frame, review_frame, success_frame, fail_frame,
+              overwrite_frame, notes_frame]
 
 global FOUND
 FOUND = None
 
-def get_data():
-    if Path('c:/Users/thetr_000/Dropbox/workdata_database.json').is_file():
-        global db_file
-        db_file = Path('c:/Users/thetr_000/Dropbox/workdata_database.json')
-        global data
-        data = json.loads(db_file.read_text())
+script_dir = os.path.dirname(__file__)
+db_file = Path(f'{script_dir}/workdata_database.json')
+
+
+def init_db_check():
+    '''
+    error 1 = file exists but isn't formatted correctly, backups exist
+    error 2 = file exists but isn't formatted correctly, no backups
+    error 3 = file doesn't exist, backups exist
+    error 4 = neither file nor backups exist
+    '''
+    if Path(f'{script_dir}/workdata_backup/').is_dir() == False:
+        new_backup_dir()
+    for p, d, files in os.walk(f'{script_dir}/workdata_backup/'):
+        if files:
+            try:
+                testpath = Path(f'{script_dir}/workdata_backup/{files[-1]}')
+                backup = json.loads(testpath.read_text())
+                x = backup['workdata']
+                y = backup['default_salary']
+            except KeyError:
+                backup = None
+        else:
+            backup = None
+    if db_file.is_file():
         try:
-            x = data['workdata']
-            pass
+            test = json.loads(db_file.read_text())
+        except json.decoder.JSONDecodeError:
+            if backup:
+                error(1, backup)
+            else:
+                error(2)
+            return
+        try:
+            x = test['workdata']
+            y = test['default_salary']
+            get_data()
+            change_frame(mm_frame)
         except KeyError:
-            error(2)
+            if backup:
+                error(1, backup)
+            else:
+                error(2)
     else:
-        error(1)
+        if backup:
+            error(3, backup)
+        else:
+            error(4)
 
 
-def error(error_type):
-    error_frame.pack
-    no_db = Label(error_frame, bg="red", fg=fgc, text="Database file not found!")
-    no_backup = Label(error_frame, bg="red", fg=fgc, text="Backup folder not found!")
-    backup_fail = Label(error_frame, bg="red", fg=fgc, text="Backup retrieval failed!\nCreating a new database file.")
-    backup_success = Label(error_frame, bg="green", fg=fgc, text="New database file created from backup!")
-    new_db_success = Label(error_frame, bg="green", fg=fgc, text="New database file created!")
-    backup_button = Button(error_frame, text="Try using latest backup file")
-    new_db = Button(error_frame, text="Create new database file")
+def get_data():
+    global data
+    data = json.loads(db_file.read_text())
+    create_base_entry()
 
-    if error_type == 1:
-        no_db.pack()
-        backup_button.pack()
-        new_db.pack()
 
+def error(code, backup=None):
+    codedict = {1: {
+                    'title': 'Database file corrupted!\nBackup files found!',
+                    'bvar1': 'Restore from backup',
+                    'bvar2': 'Exit program'
+                    },
+                2: {
+                    'title': 'Database file corrupted!\nBackup files not found!',
+                    'bvar1': 'Create new (blank) database file',
+                    'bvar2': 'Exit program'
+                    },
+                3: {
+                    'title': 'Database file not found!\nBackup files found!',
+                    'bvar1': 'Restore from backup',
+                    'bvar2': 'Exit program'
+                    },
+                4: {
+                    'title': 'Database file not found!\nBackup files not found!',
+                    'bvar1': 'Create new (blank) database file',
+                    'bvar2': 'Exit program'
+                    }
+                }
+
+    error_title_var.set(codedict[code]['title'])
+    eb_1_var.set(codedict[code]['bvar1'])
+    eb_2_var.set(codedict[code]['bvar2'])
+    error_button_2.config(command=quit)
+    if code == 1 or code == 3:
+        error_button_1.config(command=lambda: write_to_db(backup))
+    else:
+        error_button_1.config(command=new_db_file)
+
+    change_frame(error_frame)
+
+
+def new_db_file():
+    empty_db_file = {'workdata': [], 'default_salary': 0}
+    with open(f'{script_dir}/workdata_database.json', 'w') as f:
+        json.dump(empty_db_file, f, indent=2)
+    if Path(f'{script_dir}/workdata_database.json').is_file():
+        success_mm_button.config(command=lambda: [get_data(), change_frame(mm_frame)])
+        change_frame(success_frame)
+    else:
+        change_frame(fail_frame)
+
+
+def new_backup_dir():
+    os.mkdir(f'{script_dir}/workdata_backup/')
+
+
+def backup_db(db):
+    try:
+        backup_files = os.listdir(path=f'{script_dir}/workdata_backup/')
+        if len(backup_files) == 0:
+            newnum = 0
+        else:
+            backup_files.sort(key=len)
+            while len(backup_files) > 20:
+                os.remove(f'{script_dir}/workdata_backup/{backup_files[0]}')
+                backup_files.remove(backup_files[0])
+            full_name = backup_files[-1]
+            file_name = full_name[:-5]
+            name_list = file_name.split('_')
+            num = int(name_list[-1])
+            newnum = num + 1
+    except FileNotFoundError:
+        newnum = 0
+    newname = f'workdata_backup_{newnum}.json'
+    with open(f'{script_dir}/workdata_backup/{newname}', 'w') as f:
+        json.dump(db, f, indent=2)
 
 def float_it(ent):
     if ent.get():
@@ -160,7 +248,7 @@ def complete_entry():
             new_entry[k] = base_entry[k]
         else:
             new_entry[k] = entry_values[n]
-    
+
     display_entry(new_entry)
     viewer_title_var.set("Data to be saved:")
     viewer_button_1_var.set("Save!")
@@ -175,35 +263,6 @@ def complete_entry():
     change_frame(ve_viewer)
 
 
-    '''
-    output = Label(review_frame, text="Data to be entered:", pady=10, bg=bgc, fg=fgc)
-    output.grid(row=0, column=0, columnspan=2)
-    r = 1
-    for k, v in new_entry.items():
-        if v is None:
-            v = "None"
-        keylabel = Label(review_frame, bg=bgc, fg=fgc, text=f'{k}:')
-        vallabel = Label(review_frame, bg=bgc, fg=fgc, text=v)
-        keylabel.grid(row=r, column=0)
-        vallabel.grid(row=r, column=1)
-        r = r + 1
-
-
-    save = Button(review_frame, text="Save to database", command=lambda: save_entry(new_entry))
-    dns = Button(review_frame, text="Do not save", command=lambda: [change_frame(mm_frame), remove_labels(review_frame)])
-    save.grid(row=(r+1), column=0, columnspan=2, pady=10)
-    dns.grid(row=(r+2), column=0, columnspan=2, pady=10)
-    change_frame(review_frame)
-
-
-def check_for_duplicate(ent):
-    for entry in data['workdata']:
-        if ent['Date'] == entry['Date']:
-            # only use global delete_this for overwriting existing entries!
-            global delete_this
-            delete_this = entry
-'''
-
 def check_for_duplicate(ent):
     for entry in data['workdata']:
         if ent['Date'] == entry['Date']:
@@ -215,6 +274,10 @@ def remove_entry(delete_this):
     write_to_db(data)
 
 def write_to_db(new_db):
+    try:
+        backup_db(data)
+    except NameError:
+        pass
     db_file.write_text(json.dumps(new_db, indent=2))
     check_db(new_db)
 
@@ -244,11 +307,12 @@ def save_entry(ent):
         for e in data['workdata']:
             serials.append(int(e['Date']))
         serials.sort()
-        sorted_db = {'workdata': []}
+        sorted_db = {'workdata': [], 'default_salary': None}
         for serial in serials:
             for e in data['workdata']:
                 if int(e['Date']) == serial:
                     sorted_db['workdata'].append(e)
+            sorted_db['default_salary'] = data['default_salary']
         write_to_db(sorted_db)
 
     delete_this = check_for_duplicate(ent)
@@ -374,6 +438,8 @@ def change_frame(frame):
     for w in root.winfo_children():
         if w.winfo_class() == 'Frame':
             w.pack_forget()
+    if frame == mm_frame:
+        mm_sal_var.set(f"Salary set to ${data['default_salary']}")
     frame.pack()
 
 
@@ -426,38 +492,68 @@ def display_entry(ent):
             labvar_list2[n].set(vals[n])
 
 
+def create_base_entry():
+    empty_entry = {
+                   'Date': None,
+                   'Route': None,
+                   'Begin Tour': None,
+                   'End Tour': None,
+                   'Morning estimate (3996)': None,
+                   'Mgmt approval (3996)': 0.00,
+                   'OT approval method': None,
+                   'Non-primary route time': None,
+                   'Notes': None,
+                   'Salary': None,
+                   'Hourly': None,
+                   'Total work hours': None,
+                   'Regular time': None,
+                   'Overtime': None,
+                   'Primary route time': None,
+                   'Unauthorized OT': 0.00,
+                   'Gross pay': 0.00,
+                   }
+    global base_entry
+    base_entry = {}
+    for key in empty_entry:
+        base_entry[key] = empty_entry[key]   
+    base_entry['Salary'] = data['default_salary']
+    base_entry['Hourly'] = float(np.round((base_entry['Salary'] / 2080.00), 2))
+
+
 frame_history = []
 
-get_data()
+# mm_frame population
 
-empty_entry = {
-               'Date': None,
-               'Route': None,
-               'Begin Tour': None,
-               'End Tour': None,
-               'Morning estimate (3996)': None,
-               'Mgmt approval (3996)': 0.00,
-               'OT approval method': None,
-               'Non-primary route time': None,
-               'Notes': None,
-               'Salary': None,
-               'Hourly': None,
-               'Total work hours': None,
-               'Regular time': None,
-               'Overtime': None,
-               'Primary route time': None,
-               'Unauthorized OT': 0.00,
-               'Gross pay': 0.00,
-               }
+mm_sal_var = StringVar()
 
-base_entry = {}
-for key in empty_entry:
-    base_entry[key] = empty_entry[key]
-try:
-    base_entry['Salary'] = data['workdata'][-1]['Salary']
-except IndexError:
-    base_entry['Salary'] = 0
-base_entry['Hourly'] = float(np.round((base_entry['Salary'] / 2080.00), 2))
+title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
+sal_disp = Label(mm_frame,
+                 textvariable=mm_sal_var, bg=bgc, fg=fgc)
+entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
+change_sal = Button(mm_frame, text="Change Salary Rate")
+analytics = Button(mm_frame, text="Analytics Menu")
+view_ent = Button(mm_frame, text="View Entry", command=lambda: [
+                                                                viewer_title_var.set("Entry found!"),
+                                                                viewer_button_1_var.set("New Search"),
+                                                                viewer_button_1.config(command=lambda: [clear_display_labels(), clear_entries(ve_frame), change_frame(ve_frame)]),
+                                                                viewer_button_2_var.set("View Notes"),
+                                                                viewer_button_3_var.set("Delete Entry"),
+                                                                viewer_button_3.config(command=lambda: change_frame(de_frame)),
+                                                                viewer_button_4_var.set("Main Menu"),
+                                                                viewer_button_4.config(command=lambda: [clear_entries(ve_frame), change_frame(mm_frame)]),
+                                                                change_frame(ve_frame)
+                                                                ])
+delete_ent = Button(mm_frame, text="Delete an Entry")
+close_pgm = Button(mm_frame, text="Exit the Program", command=quit)
+
+title.pack(pady=20)
+sal_disp.pack(pady=20)
+entry.pack(pady=5)
+change_sal.pack(pady=5)
+analytics.pack(pady=5)
+view_ent.pack(pady=5)
+delete_ent.pack(pady=5)
+close_pgm.pack(pady=5)
 
 # ne_frame population
 ne_title = Label(ne_frame, text="New Entry", bg=bgc, fg=fgc)
@@ -755,36 +851,19 @@ notes_title.pack(pady=10)
 notes_body.pack()
 notes_button.pack(pady=15)
 
-# mm_frame population
-title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
-sal_disp = Label(mm_frame,
-                 text=f"Salary set to ${base_entry['Salary']}", bg=bgc, fg=fgc)
-entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
-change_sal = Button(mm_frame, text="Change Salary Rate")
-analytics = Button(mm_frame, text="Analytics Menu")
-view_ent = Button(mm_frame, text="View Entry", command=lambda: [
-                                                                viewer_title_var.set("Entry found!"),
-                                                                viewer_button_1_var.set("New Search"),
-                                                                viewer_button_1.config(command=lambda: [clear_display_labels(), clear_entries(ve_frame), change_frame(ve_frame)]),
-                                                                viewer_button_2_var.set("View Notes"),
-                                                                viewer_button_3_var.set("Delete Entry"),
-                                                                viewer_button_3.config(command=lambda: change_frame(de_frame)),
-                                                                viewer_button_4_var.set("Main Menu"),
-                                                                viewer_button_4.config(command=lambda: [clear_entries(ve_frame), change_frame(mm_frame)]),
-                                                                change_frame(ve_frame)
-                                                                ])
-delete_ent = Button(mm_frame, text="Delete an Entry")
-close_pgm = Button(mm_frame, text="Exit the Program", command=quit)
+# error frame population
+error_title_var = StringVar()
+eb_1_var = StringVar()
+eb_2_var = StringVar()
+error_title_label = Label(error_frame, textvariable=error_title_var, bg='red', fg=fgc)
+error_button_1 = Button(error_frame, textvariable=eb_1_var)
+error_button_2 = Button(error_frame, textvariable=eb_2_var)
 
-title.pack(pady=20)
-sal_disp.pack(pady=20)
-entry.pack(pady=5)
-change_sal.pack(pady=5)
-analytics.pack(pady=5)
-view_ent.pack(pady=5)
-delete_ent.pack(pady=5)
-close_pgm.pack(pady=5)
+error_title_label.grid(row=0, column=0, columnspan=2, pady=20)
+error_button_1.grid(row=1, column=0, padx=10)
+error_button_2.grid(row=1, column=1)
 
-change_frame(mm_frame)
+
+init_db_check()
 
 root.mainloop()
