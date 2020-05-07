@@ -148,6 +148,7 @@ def new_db_file():
         json.dump(empty_db_file, f, indent=2)
     if Path(f'{script_dir}/workdata_database.json').is_file():
         success_mm_button.config(command=lambda: [get_data(), change_frame(mm_frame)])
+        success_var.set("New database file created!")
         change_frame(success_frame)
     else:
         change_frame(fail_frame)
@@ -257,7 +258,7 @@ def complete_entry():
     viewer_button_3.config(command=lambda: [clear_entries(ne_frame), change_frame(ne_frame), viewer_button_2.grid(row=18, column=1, pady=10), viewer_button_4.grid(row=19, column=2, pady=10)])
     viewer_button_2_var.set("View Notes")
     viewer_button_2.config(command=lambda: [notestitlevar.set(f"Notes for {convert_date(str(FOUND['Date']))}:"),
-                                            notesvar.set(textwrap.fill(new_entry['Notes'], 50)),
+                                            format_notes(new_entry['Notes']),
                                             change_frame(notes_frame)])
     viewer_button_4.grid_forget()
     change_frame(ve_viewer)
@@ -273,6 +274,17 @@ def remove_entry(delete_this):
     data['workdata'].remove(delete_this)
     write_to_db(data)
 
+
+def set_salary(num):
+    try:
+        backup_db(data)
+    except NameError:
+        pass
+    data['default_salary'] = num
+    db_file.write_text(json.dumps(data, indent=2))
+    get_data()
+
+
 def write_to_db(new_db):
     try:
         backup_db(data)
@@ -285,6 +297,7 @@ def write_to_db(new_db):
 def check_db(new_db):
     get_data()
     if new_db == data:
+        success_var.set("Database successfully updated!")
         change_frame(success_frame)
     else:
         change_frame(fail_frame)
@@ -322,6 +335,16 @@ def save_entry(ent):
     else:
         append_entry()
 
+
+def int_format(input_, ent):
+    inp = input_.get()
+    out = ""
+    for c in inp:
+        if c.isdigit():
+            out += str(c)
+    if len(out) > 0:
+        out = int(out)
+    input_.set(out)
 
 
 def time_format(input_, ent):
@@ -380,6 +403,8 @@ def date_format(input_, ent):
     except NameError:
         lastinp = ""
     inp = input_.get()
+    if inp == "":
+        lastinp = ""
     if len(inp) > 10:
         input_.set(lastinp)
         root.after_idle(lambda: ent.icursor(len(inp) + 1))
@@ -389,6 +414,7 @@ def date_format(input_, ent):
     for n in range(len(inpstrip2)):
         if inpstrip2[n].isdigit() is False:
             inpstrip = inpstrip2[:n] + inpstrip2[n+1:]
+            print(inpstrip)
             inp = add_char(inpstrip, "/", [1,3])
             input_.set(inp)
             lastinp = inp
@@ -400,7 +426,7 @@ def date_format(input_, ent):
                 input_.set(lastinp)
                 return
         inds = [1, 3]
-        inp = add_char(inpstrip, "/", [1,3])
+        inp = add_char(inpstrip, "/", inds)
         lastinp = inp[:]
         input_.set(inp)
         root.after_idle(lambda: ent.icursor(len(inp) + 1))
@@ -443,7 +469,18 @@ def change_frame(frame):
     frame.pack()
 
 
+def format_notes(notes):
+    if notes:
+        notesvar.set(textwrap.fill(notes, 50))
+    else:
+        notesvar.set("---")
+
+
 def find_entry(ent):
+    viewer_button_1.grid(row=18, column=0, pady=10)
+    viewer_button_2.grid(row=19, column=0, pady=10)
+    viewer_button_3.grid(row=18, column=2, pady=10)
+    viewer_button_4.grid(row=19, column=2, pady=10)
     ent = convert_date(ent)
     ent = int(ent)
     for e in data['workdata']:
@@ -455,11 +492,20 @@ def find_entry(ent):
             de_ybutton.config(command=lambda: [clear_display_labels(), remove_entry(FOUND)])
             viewer_button_2.config(command=lambda: [
                                                     notestitlevar.set(f"Notes for {convert_date(str(FOUND['Date']))}:"),
-                                                    notesvar.set(textwrap.fill(FOUND['Notes'], 50)),
+                                                    format_notes(FOUND['Notes']),
                                                     change_frame(notes_frame)
                                                     ])
+            viewer_button_3_var.set("Delete entry")
+            viewer_button_3.config(command=lambda: change_frame(de_frame))
             return
     viewer_title_var.set("Entry not found!")
+    viewer_button_1_var.set("New Search")
+    viewer_button_3_var.set("Main Menu")
+    viewer_button_1.config(command=lambda: change_frame(ve_frame))
+    viewer_button_3.config(command=lambda: change_frame(mm_frame))
+    viewer_button_2.grid_forget()
+    viewer_button_4.grid_forget()
+
 
 
 def clear_display_labels():
@@ -520,6 +566,57 @@ def create_base_entry():
     base_entry['Hourly'] = float(np.round((base_entry['Salary'] / 2080.00), 2))
 
 
+def recalculate_entry(ent):
+    sal = data['default_salary']
+    ent['Salary'] = sal
+    ent['Hourly'] = float(np.round((ent['Salary'] / 2080.00), 2))
+    reg = float(np.round((ent['Hourly'] * ent['Regular time']), 2))
+    ot = float(np.round((ent['Hourly'] * 1.5 * ent['Overtime']), 2))
+    ent['Gross pay'] = float(np.round((reg + ot), 2))
+    return ent
+
+
+def backdate(date):
+    if len(date) != 10:
+        fail_var.set("Incomplete date entry!")
+        change_frame(fail_frame)
+    backup_db(data)
+    serial = int(convert_date(date))
+    entrylist = []
+    for e in data['workdata']:
+        if e['Date'] < serial:
+            entrylist.append(e)
+        else:
+            new_e = recalculate_entry(e)
+            entrylist.append(new_e)
+    data['workdata'] = entrylist
+    write_to_db(data)
+
+
+def cs_frame_config_1():
+    cs_title_var.set("Change Salary Rate")
+    cs_entrylabel_var.set("Enter salary as a whole number")
+    global traceid
+    traceid = cs_entry_var.trace('w', lambda *args: int_format(cs_entry_var, cs_entry))
+    cs_bottomlabel_var.set("This sets the default salary.\nNew entries will be set to the default salary.")
+    cs_button_1_var.set("Set salary")
+    cs_button_2_var.set("Main Menu")
+    cs_button_1.config(command=lambda: [set_salary(int(cs_entry_var.get())), cs_frame_config_2(), cs_entry_var.set("")])
+    cs_button_2.config(command=lambda: [change_frame(mm_frame), cs_entry_var.set("")])
+    change_frame(cs_frame)
+
+
+def cs_frame_config_2():
+    cs_title_var.set("Backdate Salary?")
+    cs_entrylabel_var.set("When did your salary change?\n(MM/DD/YYYY")
+    cs_entry_var.trace_vdelete('w', traceid)
+    cs_entry_var.trace('w', lambda *args: date_format(cs_entry_var, cs_entry))
+    cs_bottomlabel_var.set("All entries back to the backdate will be updated.\nA backup file will be created before updating entries.")
+    cs_button_1_var.set("Backdate entries")
+    cs_button_2_var.set("Do not backdate")
+    cs_button_1.config(command=lambda: [backdate(cs_entry_var.get()), cs_entry_var.set("")])
+    cs_button_2.config(command=lambda: [change_frame(mm_frame), cs_entry_var.set("")])
+
 frame_history = []
 
 # mm_frame population
@@ -530,7 +627,7 @@ title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
 sal_disp = Label(mm_frame,
                  textvariable=mm_sal_var, bg=bgc, fg=fgc)
 entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
-change_sal = Button(mm_frame, text="Change Salary Rate")
+change_sal = Button(mm_frame, text="Change Salary Rate", command=cs_frame_config_1)
 analytics = Button(mm_frame, text="Analytics Menu")
 view_ent = Button(mm_frame, text="View Entry", command=lambda: [
                                                                 viewer_title_var.set("Entry found!"),
@@ -543,7 +640,6 @@ view_ent = Button(mm_frame, text="View Entry", command=lambda: [
                                                                 viewer_button_4.config(command=lambda: [clear_entries(ve_frame), change_frame(mm_frame)]),
                                                                 change_frame(ve_frame)
                                                                 ])
-delete_ent = Button(mm_frame, text="Delete an Entry")
 close_pgm = Button(mm_frame, text="Exit the Program", command=quit)
 
 title.pack(pady=20)
@@ -552,7 +648,6 @@ entry.pack(pady=5)
 change_sal.pack(pady=5)
 analytics.pack(pady=5)
 view_ent.pack(pady=5)
-delete_ent.pack(pady=5)
 close_pgm.pack(pady=5)
 
 # ne_frame population
@@ -626,6 +721,28 @@ notes_.grid(row=9, column=1, pady=5)
 submit.grid(row=10, column=0, columnspan=2, pady=10)
 to_main.grid(row=11, column=0, columnspan=2, pady=5)
 req.grid(row=12, column=0, columnspan=2, pady=5)
+
+# change salary frame population
+cs_title_var = StringVar()
+cs_entrylabel_var = StringVar()
+cs_entry_var = StringVar()
+cs_button_1_var = StringVar()
+cs_button_2_var = StringVar()
+cs_bottomlabel_var = StringVar()
+
+cs_title = Label(cs_frame, textvariable=cs_title_var, bg=bgc, fg=fgc)
+cs_entrylabel = Label(cs_frame, textvariable=cs_entrylabel_var, bg=bgc, fg=fgc)
+cs_entry = Entry(cs_frame, width=15, textvariable=cs_entry_var)
+cs_bottomlabel = Label(cs_frame, textvariable=cs_bottomlabel_var, bg=bgc, fg=fgc)
+cs_button_1 = Button(cs_frame, textvariable=cs_button_1_var)
+cs_button_2 = Button(cs_frame, textvariable=cs_button_2_var)
+
+cs_title.grid(row=0, column=0, columnspan=2, pady=20)
+cs_entrylabel.grid(row=1, column=0)
+cs_entry.grid(row=1, column=1)
+cs_bottomlabel.grid(row=2, column=0, columnspan=2, pady=10)
+cs_button_1.grid(row=3, column=0, padx=10)
+cs_button_2.grid(row=3, column=1, padx=10)
 
 # view entry frame population
 ve_title = Label(ve_frame, text="View Entry", bg=bgc, fg=fgc)
@@ -822,12 +939,18 @@ or_nbutton.grid(row=1, column=1, pady=20)
 
 # success/fail frame population
 success_label = Label(success_frame, text="Success!", bg="#24d62a", fg=fgc)
+success_var = StringVar()
+success_var_label = Label(success_frame, textvariable=success_var, bg=bgc, fg=fgc)
 success_mm_button = Button(success_frame, text="Main Menu", command=lambda: change_frame(mm_frame))
 fail_label = Label(fail_frame, text="Failure! Something went wrong :/", bg="#d41c1c", fg=fgc)
+fail_var = StringVar()
+fail_var_label = Label(fail_frame, textvariable=fail_var, bg=bgc, fg=fgc)
 fail_mm_button = Button(fail_frame, text="Main Menu", command=lambda: change_frame(mm_frame))
 success_label.pack(pady=20)
+success_var_label.pack()
 success_mm_button.pack(pady=20)
 fail_label.pack(pady=20)
+
 fail_mm_button.pack(pady=20)
 
 # de_frame population
