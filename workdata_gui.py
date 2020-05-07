@@ -595,27 +595,29 @@ def backdate(date):
 
 def cs_frame_config_1():
     cs_title_var.set("Change Salary Rate")
+    cs_salentry.grid(row=1, column=1)
+    cs_dateentry.grid_forget()
     cs_entrylabel_var.set("Enter salary as a whole number")
-    global traceid
-    traceid = cs_entry_var.trace('w', lambda *args: int_format(cs_entry_var, cs_entry))
+    cs_salentry_var.trace('w', lambda *args: int_format(cs_salentry_var, cs_salentry))
     cs_bottomlabel_var.set("This sets the default salary.\nNew entries will be set to the default salary.")
     cs_button_1_var.set("Set salary")
     cs_button_2_var.set("Main Menu")
-    cs_button_1.config(command=lambda: [set_salary(int(cs_entry_var.get())), cs_frame_config_2(), cs_entry_var.set("")])
-    cs_button_2.config(command=lambda: [change_frame(mm_frame), cs_entry_var.set("")])
+    cs_button_1.config(command=lambda: [set_salary(int(cs_salentry_var.get())), cs_frame_config_2(), cs_salentry_var.set("")])
+    cs_button_2.config(command=lambda: [change_frame(mm_frame), cs_salentry_var.set("")])
     change_frame(cs_frame)
 
 
 def cs_frame_config_2():
     cs_title_var.set("Backdate Salary?")
+    cs_dateentry.grid(row=1, column=1)
+    cs_salentry.grid_forget()
     cs_entrylabel_var.set("When did your salary change?\n(MM/DD/YYYY")
-    cs_entry_var.trace_vdelete('w', traceid)
-    cs_entry_var.trace('w', lambda *args: date_format(cs_entry_var, cs_entry))
+    cs_dateentry_var.trace('w', lambda *args: date_format(cs_dateentry_var, cs_dateentry))
     cs_bottomlabel_var.set("All entries back to the backdate will be updated.\nA backup file will be created before updating entries.")
     cs_button_1_var.set("Backdate entries")
     cs_button_2_var.set("Do not backdate")
-    cs_button_1.config(command=lambda: [backdate(cs_entry_var.get()), cs_entry_var.set("")])
-    cs_button_2.config(command=lambda: [change_frame(mm_frame), cs_entry_var.set("")])
+    cs_button_1.config(command=lambda: [backdate(cs_dateentry_var.get()), cs_dateentry_var.set("")])
+    cs_button_2.config(command=lambda: [change_frame(mm_frame), cs_dateentry_var.set("")])
 
 frame_history = []
 
@@ -725,24 +727,27 @@ req.grid(row=12, column=0, columnspan=2, pady=5)
 # change salary frame population
 cs_title_var = StringVar()
 cs_entrylabel_var = StringVar()
-cs_entry_var = StringVar()
+cs_salentry_var = StringVar()
+cs_dateentry_var = StringVar()
 cs_button_1_var = StringVar()
 cs_button_2_var = StringVar()
 cs_bottomlabel_var = StringVar()
 
 cs_title = Label(cs_frame, textvariable=cs_title_var, bg=bgc, fg=fgc)
 cs_entrylabel = Label(cs_frame, textvariable=cs_entrylabel_var, bg=bgc, fg=fgc)
-cs_entry = Entry(cs_frame, width=15, textvariable=cs_entry_var)
+cs_salentry = Entry(cs_frame, width=15, textvariable=cs_salentry_var)
+cs_dateentry = Entry(cs_frame, width=15, textvariable=cs_dateentry_var)
 cs_bottomlabel = Label(cs_frame, textvariable=cs_bottomlabel_var, bg=bgc, fg=fgc)
 cs_button_1 = Button(cs_frame, textvariable=cs_button_1_var)
 cs_button_2 = Button(cs_frame, textvariable=cs_button_2_var)
 
 cs_title.grid(row=0, column=0, columnspan=2, pady=20)
 cs_entrylabel.grid(row=1, column=0)
-cs_entry.grid(row=1, column=1)
-cs_bottomlabel.grid(row=2, column=0, columnspan=2, pady=10)
-cs_button_1.grid(row=3, column=0, padx=10)
-cs_button_2.grid(row=3, column=1, padx=10)
+cs_salentry.grid(row=1, column=1)
+cs_dateentry.grid(row=2, column=1)
+cs_bottomlabel.grid(row=3, column=0, columnspan=2, pady=10)
+cs_button_1.grid(row=4, column=0, padx=10)
+cs_button_2.grid(row=4, column=1, padx=10)
 
 # view entry frame population
 ve_title = Label(ve_frame, text="View Entry", bg=bgc, fg=fgc)
