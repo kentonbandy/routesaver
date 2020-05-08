@@ -9,11 +9,6 @@ import os
 import time
 import textwrap
 
-'''
-TO DO:
-- Create initial function that checks viability of database file
-'''
-
 root = tk.Tk()
 root.title("Work Data App")
 root.geometry("500x600")
@@ -28,6 +23,9 @@ x = (root.winfo_screenwidth() - root.winfo_reqwidth()) / 2 - 100
 y = (root.winfo_screenheight() - root.winfo_reqheight()) / 2 - 200
 root.geometry("+%d+%d" % (x, y))
 root.deiconify()
+
+green = "#24d62a"
+grey = "#646d6e"
 
 #frames
 mm_frame = Frame(root, bg=bgc)
@@ -62,7 +60,7 @@ def init_db_check():
     error 3 = file doesn't exist, backups exist
     error 4 = neither file nor backups exist
     '''
-    if Path(f'{script_dir}/workdata_backup/').is_dir() == False:
+    if Path(f'{script_dir}/workdata_backup/').is_dir() is False:
         new_backup_dir()
     for p, d, files in os.walk(f'{script_dir}/workdata_backup/'):
         if files:
@@ -187,6 +185,42 @@ def float_it(ent):
     return var
 
 
+def ne_disabler(date, route, bt, et, f3996, fappr):
+    date = date.get()
+    route = route.get()
+    bt = bt.get()
+    et = et.get()
+    f3996 = f3996.get()
+    fappr = fappr.get()
+    passed_vars = [date, route, bt, et, f3996, fappr]
+    required = {date_: (date, 10), route_: (route, 1), bt_: (bt, 4), et_: (et, 4)}
+    count = 0
+    for ent in required.keys():
+        if required[ent][0] is None:
+            ent.config(bg='yellow')
+        elif len(required[ent][0]) < required[ent][1]:
+            ent.config(bg='yellow')
+        else:
+            ent.config(bg=green)
+            count += 1
+    if count == 4:
+        enable_widget(submit)
+    else:
+        disable_widget(submit)
+    if f3996:
+        enable_widget(form_appr_)
+    else:
+        disable_widget(form_appr_)
+    if bt and et:
+        if len(str(bt)) >= 4 and len(str(et)) >= 4:
+            if float(np.round(float(et) - float(bt), 2)) > 8.58:
+                enable_widget(appr_)
+        else:
+            disable_widget(appr_)
+    else:
+        disable_widget(appr_)
+
+
 def complete_entry():
     # needs to check for problems!
     serial = convert_date(date_.get())
@@ -250,6 +284,7 @@ def complete_entry():
         else:
             new_entry[k] = entry_values[n]
 
+    FOUND = new_entry
     display_entry(new_entry)
     viewer_title_var.set("Data to be saved:")
     viewer_button_1_var.set("Save!")
@@ -414,7 +449,6 @@ def date_format(input_, ent):
     for n in range(len(inpstrip2)):
         if inpstrip2[n].isdigit() is False:
             inpstrip = inpstrip2[:n] + inpstrip2[n+1:]
-            print(inpstrip)
             inp = add_char(inpstrip, "/", [1,3])
             input_.set(inp)
             lastinp = inp
@@ -467,6 +501,9 @@ def change_frame(frame):
     if frame == mm_frame:
         mm_sal_var.set(f"Salary set to ${data['default_salary']}")
     frame.pack()
+    first = find_first_entry(frame)
+    if first:
+        first.focus()
 
 
 def format_notes(notes):
@@ -506,6 +543,13 @@ def find_entry(ent):
     viewer_button_2.grid_forget()
     viewer_button_4.grid_forget()
 
+
+def disable_widget(widget):
+    widget.config(state=DISABLED)
+
+
+def enable_widget(widget):
+    widget.config(state=NORMAL)
 
 
 def clear_display_labels():
@@ -622,12 +666,10 @@ def cs_frame_config_2():
 frame_history = []
 
 # mm_frame population
-
 mm_sal_var = StringVar()
 
 title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
-sal_disp = Label(mm_frame,
-                 textvariable=mm_sal_var, bg=bgc, fg=fgc)
+sal_disp = Label(mm_frame, textvariable=mm_sal_var, bg=bgc, fg=fgc)
 entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
 change_sal = Button(mm_frame, text="Change Salary Rate", command=cs_frame_config_1)
 analytics = Button(mm_frame, text="Analytics Menu")
@@ -660,7 +702,7 @@ bt_l = Label(ne_frame, text="Begin Tour (HH.UU)*", bg=bgc, fg=fgc)
 et_l = Label(ne_frame, text="End Tour (HH.UU)*", bg=bgc, fg=fgc)
 form_l = Label(ne_frame, text="3996 Estimate (HH.UU)", bg=bgc, fg=fgc)
 form_appr_l = Label(ne_frame, text="3996 Approval (HH.UU)", bg=bgc, fg=fgc)
-appr_l = Label(ne_frame, text="Was all OT Approved? List method of approval", bg=bgc, fg=fgc)
+appr_l = Label(ne_frame, text="If all OT not approved on 3996,\nlist method of approval", bg=bgc, fg=fgc)
 bp_l = Label(ne_frame, text="Time spent on other routes (HH.UU)", bg=bgc, fg=fgc)
 notes_l = Label(ne_frame, text="Additional Notes", bg=bgc, fg=fgc)
 
@@ -675,52 +717,54 @@ ne_entries = ["date_",
               "notes_"
               ]
 date_text = StringVar()
-date_ = Entry(ne_frame, width=15, textvariable=date_text)
-date_text.trace('w', lambda *args: date_format(date_text, date_))
-route_ = Entry(ne_frame, width=15)
+date_ = Entry(ne_frame, width=15, textvariable=date_text, bg='yellow')
+date_text.trace('w', lambda *args: [date_format(date_text, date_), ne_disabler(date_text, route_text, bt_text, et_text, form_text, form_appr_text)])
+route_text = StringVar()
+route_ = Entry(ne_frame, width=15, textvariable=route_text, bg='yellow')
+route_text.trace('w', lambda *args: ne_disabler(date_text, route_text, bt_text, et_text, form_text, form_appr_text))
 bt_text = StringVar()
-bt_ = Entry(ne_frame, width=15, textvariable=bt_text)
-bt_text.trace('w', lambda *args: time_format(bt_text, bt_))
+bt_ = Entry(ne_frame, width=15, textvariable=bt_text, bg='yellow')
+bt_text.trace('w', lambda *args: [time_format(bt_text, bt_), ne_disabler(date_text, route_text, bt_text, et_text, form_text, form_appr_text)])
 et_text = StringVar()
-et_ = Entry(ne_frame, width=15, textvariable=et_text)
-et_text.trace('w', lambda *args: time_format(et_text, et_))
+et_ = Entry(ne_frame, width=15, textvariable=et_text, bg='yellow')
+et_text.trace('w', lambda *args: [time_format(et_text, et_), ne_disabler(date_text, route_text, bt_text, et_text, form_text, form_appr_text)])
 form_text = StringVar()
 form_ = Entry(ne_frame, width=15, textvariable=form_text)
-form_text.trace('w', lambda *args: time_format(form_text, form_))
+form_text.trace('w', lambda *args: [time_format(form_text, form_), ne_disabler(date_text, route_text, bt_text, et_text, form_text, form_appr_text)])
 form_appr_text = StringVar()
-form_appr_ = Entry(ne_frame, width=15, textvariable=form_appr_text)
-form_appr_text.trace('w', lambda *args: time_format(form_appr_text, form_appr_))
-appr_ = Entry(ne_frame, width=15)
+form_appr_ = Entry(ne_frame, width=15, disabledbackground=grey, textvariable=form_appr_text, state=DISABLED)
+form_appr_text.trace('w', lambda *args: [time_format(form_appr_text, form_appr_), ne_disabler(date_text, route_text, bt_text, et_text, form_text, form_appr_text)])
+appr_ = Entry(ne_frame, width=15, disabledbackground=grey, state=DISABLED)
 bp_text = StringVar()
 bp_ = Entry(ne_frame, width=15, textvariable=bp_text)
 bp_text.trace('w', lambda *args: time_format(bp_text, bp_))
 notes_ = Entry(ne_frame, width=15)
 
-submit = Button(ne_frame, text="Submit Entry", padx=23, state="active", command=complete_entry)
+submit = Button(ne_frame, text="Submit Entry", padx=23, state=DISABLED, command=complete_entry)
 to_main = Button(ne_frame, text="Return to Main Menu", command=lambda: change_frame(mm_frame))
 
 req = Label(ne_frame, bg=bgc, fg=fgc, text="* = Field required.\nIf no asterisk, only fill in if the field is applicable.")
 
 ne_title.grid(row=0, column=0, columnspan=2, pady=20)
-date_l.grid(row=1, column=0, pady=5)
-route_l.grid(row=2, column=0, pady=5)
-bt_l.grid(row=3, column=0, pady=5)
-et_l.grid(row=4, column=0, pady=5)
-form_l.grid(row=5, column=0, pady=5)
-form_appr_l.grid(row=6, column=0, pady=5)
-appr_l.grid(row=7, column=0, pady=5, padx=5)
-bp_l.grid(row=8, column=0, pady=5)
-notes_l.grid(row=9, column=0, pady=5)
-date_.grid(row=1, column=1, pady=5)
-route_.grid(row=2, column=1, pady=5)
-bt_.grid(row=3, column=1, pady=5)
-et_.grid(row=4, column=1, pady=5)
-form_.grid(row=5, column=1, pady=5)
-form_appr_.grid(row=6, column=1, pady=5)
-appr_.grid(row=7, column=1, pady=5)
-bp_.grid(row=8, column=1, pady=5)
-notes_.grid(row=9, column=1, pady=5)
-submit.grid(row=10, column=0, columnspan=2, pady=10)
+date_l.grid(row=1, column=0, pady=8)
+route_l.grid(row=2, column=0, pady=8)
+bt_l.grid(row=3, column=0, pady=8)
+et_l.grid(row=4, column=0, pady=8)
+form_l.grid(row=5, column=0, pady=8)
+form_appr_l.grid(row=6, column=0, pady=8)
+appr_l.grid(row=7, column=0, pady=8, padx=5)
+bp_l.grid(row=8, column=0, pady=8)
+notes_l.grid(row=9, column=0, pady=8)
+date_.grid(row=1, column=1, pady=8)
+route_.grid(row=2, column=1, pady=8)
+bt_.grid(row=3, column=1, pady=8)
+et_.grid(row=4, column=1, pady=8)
+form_.grid(row=5, column=1, pady=8)
+form_appr_.grid(row=6, column=1, pady=8)
+appr_.grid(row=7, column=1, pady=8)
+bp_.grid(row=8, column=1, pady=8)
+notes_.grid(row=9, column=1, pady=8)
+submit.grid(row=10, column=0, columnspan=2, pady=20)
 to_main.grid(row=11, column=0, columnspan=2, pady=5)
 req.grid(row=12, column=0, columnspan=2, pady=5)
 
