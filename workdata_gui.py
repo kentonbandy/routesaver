@@ -27,7 +27,7 @@ root.deiconify()
 green = "#24d62a"
 grey = "#646d6e"
 
-#frames
+# frames
 mm_frame = Frame(root, bg=bgc)
 error_frame = Frame(root, bg=bgc)
 ne_frame = Frame(root, bg=bgc)
@@ -193,7 +193,12 @@ def ne_disabler(date, route, bt, et, f3996, fappr):
     f3996 = f3996.get()
     fappr = fappr.get()
     passed_vars = [date, route, bt, et, f3996, fappr]
-    required = {date_: (date, 10), route_: (route, 1), bt_: (bt, 4), et_: (et, 4)}
+    required = {
+                date_: (date, 10),
+                route_: (route, 1),
+                bt_: (bt, 4),
+                et_: (et, 4)
+                }
     count = 0
     for ent in required.keys():
         if required[ent][0] is None:
@@ -270,7 +275,8 @@ def complete_entry():
     new_entry = {}
     entry_values = [
                     int(serial), int(route), bt, et, f3996, fappr, appr, bp,
-                    notes, None, None, hours, reg_time, ot, routetime, uaot, gross
+                    notes, None, None, hours, reg_time, ot, routetime, uaot,
+                    gross
                     ]
     for i in base_entry:
         new_entry[i] = base_entry[i]
@@ -288,9 +294,34 @@ def complete_entry():
     display_entry(new_entry)
     viewer_title_var.set("Data to be saved:")
     viewer_button_1_var.set("Save!")
-    viewer_button_1.config(command=lambda: [save_entry(new_entry), clear_entries(ne_frame), viewer_button_2.grid(row=18, column=1, pady=10), viewer_button_4.grid(row=19, column=2, pady=10)])
+    viewer_button_1.config(command=lambda: [
+                                            save_entry(new_entry),
+                                            clear_entries(ne_frame),
+                                            viewer_button_2.grid(
+                                                                 row=18,
+                                                                 column=1,
+                                                                 pady=10
+                                                                 ),
+                                            viewer_button_4.grid(
+                                                                 row=19,
+                                                                 column=2,
+                                                                 pady=10
+                                                                 )
+                                            ])
     viewer_button_3_var.set("Do not save")
-    viewer_button_3.config(command=lambda: [clear_entries(ne_frame), change_frame(ne_frame), viewer_button_2.grid(row=18, column=1, pady=10), viewer_button_4.grid(row=19, column=2, pady=10)])
+    viewer_button_3.config(command=lambda: [
+                                            clear_entries(ne_frame),
+                                            change_frame(ne_frame),
+                                            viewer_button_2.grid(
+                                                                 row=18,
+                                                                 column=1,
+                                                                 pady=10
+                                                                 ),
+                                            viewer_button_4.grid(
+                                                                 row=19,
+                                                                 column=2,
+                                                                 pady=10)
+                                            ])
     viewer_button_2_var.set("View Notes")
     viewer_button_2.config(command=lambda: [notestitlevar.set(f"Notes for {convert_date(str(FOUND['Date']))}:"),
                                             format_notes(new_entry['Notes']),
