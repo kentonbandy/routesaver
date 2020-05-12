@@ -1,7 +1,6 @@
 
 from tkinter import *
 import tkinter as tk
-from PIL import ImageTk, Image
 import numpy as np
 import json
 from pathlib import Path
@@ -176,6 +175,7 @@ def backup_db(db):
     newname = f'workdata_backup_{newnum}.json'
     with open(f'{script_dir}/workdata_backup/{newname}', 'w') as f:
         json.dump(db, f, indent=2)
+
 
 def float_it(ent):
     if ent.get():
