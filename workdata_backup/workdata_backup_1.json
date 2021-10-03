@@ -1,0 +1,24 @@
+{
+  "workdata": [
+    {
+      "Date": 20211003,
+      "Route": 43,
+      "Begin Tour": 8.0,
+      "End Tour": 16.5,
+      "Morning estimate (3996)": null,
+      "Mgmt approval (3996)": null,
+      "OT approval method": "NO OT",
+      "Non-primary route time": null,
+      "Notes": "Typical 8 hour day",
+      "Salary": 53490,
+      "Hourly": 25.72,
+      "Total work hours": 8.0,
+      "Regular time": 8.0,
+      "Overtime": 0,
+      "Primary route time": 8.0,
+      "Unauthorized OT": null,
+      "Gross pay": 205.76
+    }
+  ],
+  "default_salary": 53490
+}
