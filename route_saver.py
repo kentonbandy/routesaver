@@ -9,7 +9,7 @@ import time
 import textwrap
 
 root = tk.Tk()
-root.title("Work Data App")
+root.title("RouteSaver")
 root.geometry("500x600")
 bgc = "#0b5973"
 fgc = "white"
@@ -699,7 +699,7 @@ frame_history = []
 # mm_frame population
 mm_sal_var = StringVar()
 
-title = Label(mm_frame, text="Welcome to the Work Data App!", bg=bgc, fg=fgc)
+title = Label(mm_frame, text="Welcome to RouteSaver!", bg=bgc, fg=fgc)
 sal_disp = Label(mm_frame, textvariable=mm_sal_var, bg=bgc, fg=fgc)
 entry = Button(mm_frame, text="Create New Entry", command=lambda: change_frame(ne_frame))
 change_sal = Button(mm_frame, text="Change Salary Rate", command=cs_frame_config_1)
